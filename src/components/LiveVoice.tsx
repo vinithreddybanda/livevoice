@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, Trash2 } from 'lucide-react';
 import { createClient, type ListenLiveClient } from '@deepgram/sdk';
 import { gsap } from 'gsap';
 import { useThemeStore } from '../lib/themeStore';
@@ -433,7 +433,7 @@ export const LiveVoice: React.FC = () => {
               ))}
             </div>
 
-            {/* Language Selector */}
+            {/* Language Selector and Delete Button */}
             <div className="flex items-center gap-1 flex-shrink-0">
               <select
                 value={selectedLanguage}
@@ -451,6 +451,21 @@ export const LiveVoice: React.FC = () => {
                   </option>
                 ))}
               </select>
+              
+              {/* Delete Button */}
+              {(finalText || interimText) && (
+                <button
+                  onClick={clearText}
+                  className={`p-1.5 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 group ${
+                    isDark
+                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100/80'
+                  }`}
+                  title="Clear transcription"
+                >
+                  <Trash2 className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -519,27 +534,6 @@ export const LiveVoice: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Action Buttons */}
-          {(finalText || interimText) && (
-            <div className="flex justify-center mt-4">
-              <button
-                onClick={clearText}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 group ${
-                  isDark
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100/80'
-                }`}
-              >
-                <div className={`w-1 h-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
-                  isDark 
-                    ? 'bg-gray-400' 
-                    : 'bg-gray-600'
-                }`}></div>
-                Clear Text
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </>
