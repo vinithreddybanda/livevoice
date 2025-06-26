@@ -156,7 +156,10 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
             fontWeight: 700,
             letterSpacing: '0.3em',
             transformStyle: 'preserve-3d',
-            perspective: '1000px'
+            perspective: '1000px',
+            opacity: 0,
+            transform: 'scale(1.1) translateY(20px)',
+            filter: 'blur(20px)'
           }}
         >
           LIVEVOICEX
