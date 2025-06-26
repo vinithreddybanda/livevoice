@@ -1,71 +1,154 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Settings } from 'lucide-react';
+import { Mic, MicOff } from 'lucide-react';
 import { createClient, type ListenLiveClient } from '@deepgram/sdk';
+import { gsap } from 'gsap';
+import { useThemeStore } from '../lib/themeStore';
+import { ThreeBackground } from './ThreeBackground';
 
-// Deepgram language codes
+// Deepgram language codes - Enhanced and Nova-2 models
 const LANGUAGES = [
-  { code: 'en-US', name: 'English (US)' },
-  { code: 'en-GB', name: 'English (UK)' },
-  { code: 'es-ES', name: 'Spanish (Spain)' },
-  { code: 'es-419', name: 'Spanish (Latin America)' },
-  { code: 'fr-FR', name: 'French' },
-  { code: 'de-DE', name: 'German' },
-  { code: 'it-IT', name: 'Italian' },
-  { code: 'pt-BR', name: 'Portuguese (Brazil)' },
-  { code: 'ru-RU', name: 'Russian' },
-  { code: 'ja-JP', name: 'Japanese' },
-  { code: 'ko-KR', name: 'Korean' },
-  { code: 'zh-CN', name: 'Chinese (Simplified)' },
-  { code: 'hi-IN', name: 'Hindi' },
-  { code: 'ar-SA', name: 'Arabic' },
+  // Enhanced model languages
+  { code: 'da', name: 'Danish', model: 'enhanced' },
+  { code: 'nl', name: 'Dutch', model: 'enhanced' },
+  { code: 'en', name: 'English', model: 'enhanced' },
+  { code: 'fr', name: 'French', model: 'enhanced' },
+  { code: 'de', name: 'German', model: 'enhanced' },
+  { code: 'hi', name: 'Hindi', model: 'nova-2' },
+  { code: 'it', name: 'Italian', model: 'enhanced' },
+  { code: 'ja', name: 'Japanese', model: 'enhanced' },
+  { code: 'ko', name: 'Korean', model: 'enhanced' },
+  { code: 'no', name: 'Norwegian', model: 'enhanced' },
+  { code: 'pl', name: 'Polish', model: 'enhanced' },
+  { code: 'pt', name: 'Portuguese', model: 'enhanced' },
+  { code: 'es', name: 'Spanish', model: 'enhanced' },
+  { code: 'sv', name: 'Swedish', model: 'enhanced' },
+  { code: 'ta', name: 'Tamil', model: 'enhanced' },
+  { code: 'taq', name: 'Tamasheq', model: 'enhanced' },
+  
+  // Nova-2 model languages
+  { code: 'bg', name: 'Bulgarian', model: 'nova-2' },
+  { code: 'ca', name: 'Catalan', model: 'nova-2' },
+  { code: 'zh-CN', name: 'Chinese (Simplified)', model: 'nova-2' },
+  { code: 'zh-TW', name: 'Chinese (Traditional)', model: 'nova-2' },
+  { code: 'zh-HK', name: 'Chinese (Hong Kong)', model: 'nova-2' },
+  { code: 'cs', name: 'Czech', model: 'nova-2' },
+  { code: 'et', name: 'Estonian', model: 'nova-2' },
+  { code: 'fi', name: 'Finnish', model: 'nova-2' },
+  { code: 'fr-CA', name: 'French (Canada)', model: 'nova-2' },
+  { code: 'de-CH', name: 'German (Switzerland)', model: 'nova-2' },
+  { code: 'el', name: 'Greek', model: 'nova-2' },
+  { code: 'hu', name: 'Hungarian', model: 'nova-2' },
+  { code: 'id', name: 'Indonesian', model: 'nova-2' },
+  { code: 'lv', name: 'Latvian', model: 'nova-2' },
+  { code: 'lt', name: 'Lithuanian', model: 'nova-2' },
+  { code: 'ms', name: 'Malay', model: 'nova-2' },
+  { code: 'ro', name: 'Romanian', model: 'nova-2' },
+  { code: 'ru', name: 'Russian', model: 'nova-2' },
+  { code: 'sk', name: 'Slovak', model: 'nova-2' },
+  { code: 'th', name: 'Thai', model: 'nova-2' },
+  { code: 'tr', name: 'Turkish', model: 'nova-2' },
+  { code: 'uk', name: 'Ukrainian', model: 'nova-2' },
+  { code: 'vi', name: 'Vietnamese', model: 'nova-2' },
 ];
 
-const AudioVisualizer: React.FC<{ isListening: boolean; audioLevel: number }> = ({
+const AudioVisualizer: React.FC<{ isListening: boolean; audioLevel: number; isDark: boolean }> = ({
   isListening,
   audioLevel,
+  isDark,
 }) => {
-  const bars = Array.from({ length: 20 }, (_, i) => i);
+  const bars = Array.from({ length: 12 }, (_, i) => i);
+  const barsRef = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (isListening) {
+      barsRef.current.forEach((bar, index) => {
+        if (bar) {
+          gsap.to(bar, {
+            scaleY: 1 + Math.random() * audioLevel * 3,
+            duration: 0.1,
+            repeat: -1,
+            yoyo: true,
+            delay: index * 0.05,
+            ease: "power2.inOut"
+          });
+        }
+      });
+    } else {
+      barsRef.current.forEach((bar) => {
+        if (bar) {
+          gsap.to(bar, {
+            scaleY: 1,
+            duration: 0.3,
+            ease: "power2.out"
+          });
+        }
+      });
+    }
+  }, [isListening, audioLevel]);
 
   return (
-    <div className="flex items-center justify-center space-x-1 h-12 mb-6">
-      {bars.map((_, index) => {
-        const height = isListening
-          ? Math.random() * audioLevel * 40 + 8
-          : 8;
-        
-        return (
-          <div
-            key={index}
-            className={`bg-gradient-to-t from-blue-500 to-blue-300 rounded-full transition-all duration-150 ease-out ${
-              isListening ? 'opacity-100' : 'opacity-30'
-            }`}
-            style={{
-              width: '3px',
-              height: `${height}px`,
-              animationDelay: `${index * 50}ms`,
-            }}
-          />
-        );
-      })}
+    <div className="flex items-center justify-center space-x-1 h-8 mb-4">
+      {bars.map((_, index) => (
+        <div
+          key={index}
+          ref={(el) => { barsRef.current[index] = el; }}
+          className={`w-1 h-4 rounded-full transition-all duration-100 ease-out origin-bottom ${
+            isDark
+              ? 'bg-white'
+              : 'bg-black'
+          } ${isListening ? 'opacity-100' : 'opacity-20'}`}
+        />
+      ))}
     </div>
   );
 };
 
 export const LiveVoice: React.FC = () => {
+  const { isDark } = useThemeStore();
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [finalText, setFinalText] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('en-US');
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [error, setError] = useState('');
   const [audioLevel, setAudioLevel] = useState(0.5);
-  const [showSettings, setShowSettings] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [isConnected, setIsConnected] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const connectionRef = useRef<ListenLiveClient | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const keepAliveRef = useRef<NodeJS.Timeout | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // GSAP animations
+  useEffect(() => {
+    if (cardRef.current) {
+      gsap.fromTo(cardRef.current, 
+        { opacity: 0, y: 50, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "back.out(1.7)" }
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (buttonRef.current) {
+      if (isListening) {
+        gsap.to(buttonRef.current, {
+          scale: 1.1,
+          duration: 0.3,
+          ease: "power2.out"
+        });
+      } else {
+        gsap.to(buttonRef.current, {
+          scale: 1,
+          duration: 0.3,
+          ease: "power2.out"
+        });
+      }
+    }
+  }, [isListening]);
 
   // Audio level animation
   useEffect(() => {
@@ -91,7 +174,6 @@ export const LiveVoice: React.FC = () => {
   const startListening = async () => {
     try {
       setError('');
-      setConnectionStatus('connecting');
       
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -113,27 +195,30 @@ export const LiveVoice: React.FC = () => {
 
       // Initialize Deepgram WebSocket
       const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY;
-      console.log('API Key available:', !!apiKey);
-      console.log('API Key length:', apiKey?.length);
       
       if (!apiKey) {
         setError('Deepgram API key not found. Please check your .env file.');
-        setConnectionStatus('disconnected');
         return;
       }
       
       const deepgram = createClient(apiKey);
       
+      // Get the appropriate model for the selected language
+      const selectedLang = LANGUAGES.find(lang => lang.code === selectedLanguage);
+      const modelToUse = selectedLang?.model || 'enhanced'; // Default to enhanced
+      
       const socket = deepgram.listen.live({
-        model: 'nova',
+        model: modelToUse,
         language: selectedLanguage,
         smart_format: true,
         interim_results: true,
+        endpointing: 300, // Faster endpointing for quicker final results
+        utterance_end_ms: 1000, // Shorter utterance end detection
+        vad_events: true, // Voice activity detection events
       });
 
       socket.on("open", () => {
-        console.log("client: connected to websocket");
-        setConnectionStatus('connected');
+        setIsConnected(true);
         
         // Set up MediaRecorder after connection is open
         const options: MediaRecorderOptions = {};
@@ -150,19 +235,24 @@ export const LiveVoice: React.FC = () => {
         mediaRecorderRef.current = new MediaRecorder(stream, options);
 
         mediaRecorderRef.current.ondataavailable = (event) => {
-          if (event.data.size > 0 && connectionRef.current) {
-            console.log(`Sending audio data: ${event.data.size} bytes`);
+          if (event.data.size > 0 && connectionRef.current && isConnected) {
             connectionRef.current.send(event.data);
           }
         };
 
-        mediaRecorderRef.current.onerror = (event) => {
-          console.error('MediaRecorder error:', event);
+        mediaRecorderRef.current.onerror = () => {
           setError('Recording error occurred');
         };
 
-        mediaRecorderRef.current.start(100); // Send data every 100ms for more responsiveness
+        mediaRecorderRef.current.start(50); // Send data every 50ms for faster responsiveness
         setIsListening(true);
+        
+        // Set up keep-alive to prevent connection timeout
+        keepAliveRef.current = setInterval(() => {
+          if (connectionRef.current) {
+            connectionRef.current.keepAlive();
+          }
+        }, 5000); // Send keep-alive every 5 seconds for better connection stability
       });
 
       socket.on("Results", (data) => {
@@ -170,7 +260,9 @@ export const LiveVoice: React.FC = () => {
         
         if (transcript !== '') {
           if (data.is_final) {
-            setFinalText(prev => prev + ' ' + transcript);
+            // Add space before new final text if there's existing text
+            const separator = finalText.trim() ? ' ' : '';
+            setFinalText(prev => prev + separator + transcript.trim());
             setInterimText('');
           } else {
             setInterimText(transcript);
@@ -178,48 +270,67 @@ export const LiveVoice: React.FC = () => {
         }
       });
 
+      socket.on("UtteranceEnd", () => {
+        // Force finalize any remaining interim text
+        if (interimText.trim()) {
+          const separator = finalText.trim() ? ' ' : '';
+          setFinalText(prev => prev + separator + interimText.trim());
+          setInterimText('');
+        }
+      });
+
       socket.on("error", (error) => {
-        console.error('Deepgram error details:', error);
-        console.error('Error type:', typeof error);
-        console.error('Error keys:', Object.keys(error));
         setError(`Connection error: ${error.error?.message || 'Unknown error'}`);
-        setConnectionStatus('disconnected');
+        setIsConnected(false);
       });
 
-      socket.on("warning", (warning) => {
-        console.warn('Deepgram warning:', warning);
+      socket.on("warning", () => {
+        // Handle warnings silently
       });
 
-      socket.on("Metadata", (metadata) => {
-        console.log('Deepgram metadata:', metadata);
+      socket.on("Metadata", () => {
+        // Handle metadata silently
       });
 
       socket.on("close", (event) => {
-        console.log('Deepgram connection closed:', event);
-        setConnectionStatus('disconnected');
-        if (event.code !== 1000) {
+        setIsConnected(false);
+        
+        // Clear keep-alive timer
+        if (keepAliveRef.current) {
+          clearInterval(keepAliveRef.current);
+          keepAliveRef.current = null;
+        }
+        
+        if (event.code !== 1000 && isListening) {
           setError('Connection lost. Please try again.');
         }
-        setIsListening(false);
+        
+        // Don't automatically set isListening to false here to allow manual control
       });
 
       connectionRef.current = socket;
       
-    } catch (err) {
-      console.error('Error starting recording:', err);
+    } catch {
       setError('Failed to access microphone. Please check permissions.');
-      setConnectionStatus('disconnected');
     }
   };
 
   const stopListening = () => {
     setIsListening(false);
-    setConnectionStatus('disconnected');
+    setIsConnected(false);
     
+    // Stop MediaRecorder first to prevent more data events
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
     
+    // Clear keep-alive timer
+    if (keepAliveRef.current) {
+      clearInterval(keepAliveRef.current);
+      keepAliveRef.current = null;
+    }
+    
+    // Close WebSocket connection
     if (connectionRef.current) {
       connectionRef.current.requestClose();
       connectionRef.current = null;
@@ -250,113 +361,188 @@ export const LiveVoice: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-2xl relative">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Live Voice</h1>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <Settings className="w-6 h-6 text-gray-600" />
-          </button>
-        </div>
-
-        {/* Settings Panel */}
-        {showSettings && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-2xl">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Language
-            </label>
-            <select
-              value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isListening}
-            >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.name}
-                </option>
-              ))}
-            </select>
+    <>
+      <ThreeBackground isDark={isDark} isListening={isListening} />
+      <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 ${
+        isDark 
+          ? 'bg-black' 
+          : 'bg-white'
+      }`}>
+        <div 
+          ref={cardRef}
+          className={`backdrop-blur-xl rounded-3xl shadow-2xl border p-8 w-full max-w-md relative overflow-hidden transition-all duration-500 ${
+            isDark
+              ? 'bg-black/95 border-gray-800 shadow-black/50'
+              : 'bg-white/95 border-gray-200 shadow-gray-500/20'
+          }`}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-center mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+                <img 
+                  src="/favico.svg" 
+                  alt="LiveVoice" 
+                  className="w-8 h-8"
+                />
+              </div>
+              <h1 className={`text-xl font-bold transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-black'
+              }`}>LiveVoice</h1>
+            </div>
           </div>
-        )}
 
-        {/* Audio Visualizer */}
-        <AudioVisualizer isListening={isListening} audioLevel={audioLevel} />
+          {/* Compact Language Selector */}
+          <div className="mb-4">
+            <div className="flex items-center justify-center gap-2">
+              <span className={`text-xs font-medium ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>Language:</span>
+              <select
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                className={`text-xs px-2 py-1 border rounded-md focus:outline-none focus:ring-1 transition-all duration-200 ${
+                  isDark
+                    ? 'border-gray-700 focus:ring-white focus:border-white bg-black text-white'
+                    : 'border-gray-300 focus:ring-black focus:border-black bg-white text-black'
+                }`}
+                disabled={isListening}
+              >
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-        {/* Main Button */}
-        <div className="flex justify-center mb-8">
-          <button
-            onClick={toggleListening}
-            className={`relative p-6 rounded-full transition-all duration-300 transform hover:scale-105 ${
-              isListening
-                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                : 'bg-blue-500 hover:bg-blue-600'
-            } shadow-lg`}
-          >
-            {isListening ? (
-              <MicOff className="w-8 h-8 text-white" />
-            ) : (
-              <Mic className="w-8 h-8 text-white" />
-            )}
-          </button>
-        </div>
+          {/* Audio Visualizer */}
+          <AudioVisualizer isListening={isListening} audioLevel={audioLevel} isDark={isDark} />
 
-        {/* Status Text */}
-        <div className="text-center mb-6">
-          <p className="text-sm text-gray-500">
-            {connectionStatus === 'connecting' && 'Connecting...'}
-            {connectionStatus === 'connected' && isListening && 'Listening...'}
-            {connectionStatus === 'disconnected' && !isListening && 'Tap to start listening'}
-          </p>
-        </div>
-
-        {/* Transcription Area */}
-        <div className="min-h-[200px] max-h-[400px] overflow-y-auto p-6 bg-gray-50 rounded-2xl">
-          {error ? (
-            <div className="text-red-500 text-center text-sm">{error}</div>
-          ) : (
-            <div className="space-y-4">
-              {/* Final Text */}
-              {finalText && (
-                <div className="text-lg leading-relaxed text-gray-900 font-medium">
-                  {finalText}
-                </div>
+          {/* Main Button */}
+          <div className="flex justify-center mb-6">
+            <button
+              ref={buttonRef}
+              onClick={toggleListening}
+              className={`relative p-6 rounded-full transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-xl group ${
+                isListening
+                  ? isDark
+                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
+                    : 'bg-black hover:bg-gray-900 shadow-black/20'
+                  : isDark
+                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
+                    : 'bg-black hover:bg-gray-900 shadow-black/20'
+              }`}
+            >
+              {/* Ripple effect */}
+              {isListening && (
+                <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${
+                  isDark ? 'bg-white' : 'bg-black'
+                }`}></div>
               )}
               
-              {/* Interim Text */}
-              {interimText && (
-                <div className="text-lg leading-relaxed text-gray-400 italic transition-all duration-300">
-                  {interimText}
-                </div>
+              {isListening ? (
+                <MicOff className={`w-8 h-8 relative z-10 transition-transform duration-200 group-hover:scale-110 ${
+                  isDark ? 'text-black' : 'text-white'
+                }`} />
+              ) : (
+                <Mic className={`w-8 h-8 relative z-10 transition-transform duration-200 group-hover:scale-110 ${
+                  isDark ? 'text-black' : 'text-white'
+                }`} />
               )}
+            </button>
+          </div>
 
-              {/* Placeholder */}
-              {!finalText && !interimText && !error && (
-                <div className="text-center text-gray-400 text-lg">
-                  Your transcription will appear here...
-                </div>
-              )}
+          {/* Transcription Area */}
+          <div className={`min-h-[160px] max-h-[280px] overflow-y-auto p-4 rounded-xl border relative transition-all duration-300 ${
+            isDark
+              ? 'bg-gray-900/80 border-gray-600/50'
+              : 'bg-gray-50/80 border-gray-200/50'
+          }`}>
+            
+            {error ? (
+              <div className={`text-center text-sm p-3 rounded-lg border flex items-center justify-center gap-2 transition-all duration-300 ${
+                isDark
+                  ? 'text-red-400 bg-red-900/50 border-red-700/50'
+                  : 'text-red-500 bg-red-50/80 border-red-200/50'
+              }`}>
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                {error}
+              </div>
+            ) : (
+              <div className="space-y-3 relative z-10">
+                {/* Final Text */}
+                {finalText && (
+                  <div className={`text-base leading-relaxed font-medium p-3 rounded-lg border shadow-sm transition-all duration-300 ${
+                    isDark
+                      ? 'text-white bg-gray-800/60 border-gray-600/30'
+                      : 'text-gray-900 bg-white/60 border-gray-200/30'
+                  }`}>
+                    {finalText}
+                  </div>
+                )}
+                
+                {/* Interim Text */}
+                {interimText && (
+                  <div className={`text-base leading-relaxed italic p-3 rounded-lg border transition-all duration-300 ${
+                    isDark
+                      ? 'text-gray-400 bg-gray-700/40 border-gray-600/30'
+                      : 'text-gray-500 bg-gray-100/40 border-gray-200/30'
+                  }`}>
+                    {interimText}
+                  </div>
+                )}
+
+                {/* Placeholder */}
+                {!finalText && !interimText && !error && (
+                  <div className={`text-center text-sm py-8 flex flex-col items-center gap-3 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                      isDark
+                        ? 'bg-gray-700'
+                        : 'bg-gray-200'
+                    }`}>
+                      <Mic className={`w-6 h-6 transition-colors duration-300 ${
+                        isDark ? 'text-gray-400' : 'text-gray-400'
+                      }`} />
+                    </div>
+                    <div>
+                      <p className="font-medium">Start speaking</p>
+                      <p className={`text-xs mt-1 transition-colors duration-300 ${
+                        isDark ? 'text-gray-600' : 'text-gray-400'
+                      }`}>Your transcription will appear here</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          {(finalText || interimText) && (
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={clearText}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 group ${
+                  isDark
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100/80'
+                }`}
+              >
+                <div className={`w-1 h-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
+                  isDark 
+                    ? 'bg-gray-400' 
+                    : 'bg-gray-600'
+                }`}></div>
+                Clear Text
+              </button>
             </div>
           )}
         </div>
-
-        {/* Action Buttons */}
-        {(finalText || interimText) && (
-          <div className="flex justify-center mt-6">
-            <button
-              onClick={clearText}
-              className="px-6 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Clear Text
-            </button>
-          </div>
-        )}
       </div>
-    </div>
+    </>
   );
 };
 
