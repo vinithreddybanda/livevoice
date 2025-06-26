@@ -1,12 +1,8 @@
 import './App.css'
+import LiveVoice from './components/LiveVoice'
 
 function App() {
-
-  return (
-    <>
-    </>
-  
-  )
+  return <LiveVoice />
 }
 
 export default App
