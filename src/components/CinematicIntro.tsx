@@ -1,78 +1,22 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { gsap } from 'gsap';
-import * as THREE from 'three';
-
-// Import shaders
-import backgroundVertexShader from '../shaders/backgroundVertex.glsl?raw';
-import backgroundFragmentShader from '../shaders/backgroundFragment.glsl?raw';
 
 interface CinematicIntroProps {
   onComplete: () => void;
 }
 
-interface ShaderMaterialProps {
-  hue: number;
-  intensity: number;
-  blur: number;
-}
-
-const ShaderBackground: React.FC<ShaderMaterialProps> = ({ hue, intensity, blur }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-
-  useFrame((state) => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      materialRef.current.uniforms.uHue.value = hue;
-      materialRef.current.uniforms.uIntensity.value = intensity;
-      materialRef.current.uniforms.uBlur.value = blur;
-    }
-  });
-
-  return (
-    <mesh ref={meshRef} position={[0, 0, -1]}>
-      <planeGeometry args={[4, 4]} />
-      <shaderMaterial
-        ref={materialRef}
-        vertexShader={backgroundVertexShader}
-        fragmentShader={backgroundFragmentShader}
-        uniforms={{
-          uTime: { value: 0 },
-          uHue: { value: hue },
-          uIntensity: { value: intensity },
-          uBlur: { value: blur },
-          uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
-        }}
-      />
-    </mesh>
-  );
-};
-
 const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
-  const captionRef = useRef<HTMLDivElement>(null);
-
-  // Animation state
-  const [shaderProps, setShaderProps] = useState({
-    hue: 0.9, // Pink hue
-    intensity: 0,
-    blur: 0
-  });
-
-  const animateShaderProps = useCallback((newProps: Partial<typeof shaderProps>) => {
-    setShaderProps(prev => ({ ...prev, ...newProps }));
-  }, []);
 
   const exitAnimation = useCallback(() => {
-    if (!titleRef.current || !captionRef.current || !containerRef.current) return;
+    if (!titleRef.current || !containerRef.current) return;
 
     const tl = gsap.timeline();
 
     // Text fade out with faster transition
-    tl.to([titleRef.current, captionRef.current], {
-      duration: 1,
+    tl.to(titleRef.current, {
+      duration: 2.0,
       opacity: 0,
       scale: 0.8,
       y: -15,
@@ -82,55 +26,42 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
 
     // Background shader blur and dissolve with faster effect
     tl.to({}, {
-      duration: 1.5,
-      ease: 'power2.inOut',
-      onUpdate: function() {
-        const progress = this.progress();
-        animateShaderProps({ 
-          blur: progress * 1.2,
-          intensity: 0.9 - (progress * 0.8)
-        });
-      }
+      duration: 0.5,
+      ease: 'power2.inOut'
     }, '-=0.5');
 
     // Final container fade
     tl.to(containerRef.current, {
-      duration: 0.8,
+      duration: 1.8,
       opacity: 0,
       ease: 'power2.in',
       onComplete: onComplete
     }, '-=0.3');
-  }, [onComplete, animateShaderProps]);
+  }, [onComplete]);
 
   const startAnimation = useCallback(() => {
-    if (!titleRef.current || !captionRef.current) return;
+    if (!titleRef.current) return;
 
     // Ensure elements are properly hidden (redundant safety check)
-    gsap.set([titleRef.current, captionRef.current], {
+    gsap.set(titleRef.current, {
       opacity: 0,
       scale: 1.1,
       filter: 'blur(20px)',
       y: 20
     });
 
-    animateShaderProps({ hue: 0.9, intensity: 0, blur: 0 });
-
     // Timeline for the entire animation
     const tl = gsap.timeline();
 
-    // Background bloom in - faster
+    // Background bloom in - faster (removed shader animation)
     tl.to({}, {
       duration: 1.2,
-      ease: 'power2.out',
-      onUpdate: function() {
-        const progress = this.progress();
-        animateShaderProps({ intensity: progress * 0.9 });
-      }
+      ease: 'power2.out'
     });
 
     // Title animation - faster entrance
     tl.to(titleRef.current, {
-      duration: 1.5,
+      duration: 2.0 ,
       opacity: 1,
       scale: 1.0,
       y: 0,
@@ -138,30 +69,20 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
       ease: 'power2.out'
     }, '-=1.2');
 
-    // Caption animation with faster timing
-    tl.to(captionRef.current, {
-      duration: 1.2,
-      opacity: 1,
-      scale: 1.0,
-      y: 0,
-      filter: 'blur(0px)',
-      ease: 'power2.out'
-    }, '-=0.8');
-
     // Hold for shorter moment
-    tl.to({}, { duration: 1.5 });
+    tl.to({}, { duration: 0.1 });
 
     // Auto exit after full sequence
     tl.call(() => {
-      setTimeout(exitAnimation, 500);
+      setTimeout(exitAnimation, 100);
     });
-  }, [animateShaderProps, exitAnimation]);
+  }, [exitAnimation]);
 
   // Set initial state immediately and start animation
   useEffect(() => {
     // Immediately hide elements to prevent flash
-    if (titleRef.current && captionRef.current) {
-      gsap.set([titleRef.current, captionRef.current], {
+    if (titleRef.current) {
+      gsap.set(titleRef.current, {
         opacity: 0,
         scale: 1.1,
         filter: 'blur(20px)',
@@ -169,56 +90,76 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
       });
     }
     
+    // Mouse move handler for interactive title effects
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!titleRef.current) return;
+      
+      const rect = titleRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const deltaX = (e.clientX - centerX) / 50; // Sensitivity adjustment
+      const deltaY = (e.clientY - centerY) / 50;
+      
+      // Apply subtle transform based on mouse position
+      gsap.to(titleRef.current, {
+        duration: 0.3,
+        x: deltaX,
+        y: deltaY,
+        rotationY: deltaX * 0.5,
+        rotationX: -deltaY * 0.5,
+        ease: "power2.out"
+      });
+      
+      // Remove setMousePosition call since we don't need state tracking
+    };
+
+    const handleMouseLeave = () => {
+      if (!titleRef.current) return;
+      
+      // Return to center position when mouse leaves
+      gsap.to(titleRef.current, {
+        duration: 0.5,
+        x: 0,
+        y: 0,
+        rotationY: 0,
+        rotationX: 0,
+        ease: "power2.out"
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
+    
     const timer = setTimeout(startAnimation, 0);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+    };
   }, [startAnimation]);
 
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-white"
       style={{ fontFamily: 'Poppins, sans-serif' }}
     >
-      {/* WebGL Background */}
-      <div className="absolute inset-0">
-        <Canvas
-          camera={{ position: [0, 0, 1], fov: 75 }}
-          gl={{ antialias: true, alpha: true }}
-        >
-          <ShaderBackground 
-            hue={shaderProps.hue}
-            intensity={shaderProps.intensity}
-            blur={shaderProps.blur}
-          />
-        </Canvas>
-      </div>
-
-      {/* Content - Much smaller text */}
+      {/* Content - Interactive title */}
       <div className="relative z-10 text-center">
-        {/* Main Title - Bold and refined */}
+        {/* Main Title - Bold and interactive */}
         <div
           ref={titleRef}
-          className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider text-gray-800 mb-4"
+          className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider text-gray-800 mb-4 cursor-pointer select-none"
           style={{
-            textShadow: '0 0 25px rgba(255,255,255,0.9)',
+            textShadow: '0 0 25px rgba(0,0,0,0.1)',
             fontWeight: 700,
-            letterSpacing: '0.3em'
+            letterSpacing: '0.3em',
+            transformStyle: 'preserve-3d',
+            perspective: '1000px'
           }}
         >
           LIVEVOICEX
-        </div>
-
-        {/* Caption - Smaller size */}
-        <div
-          ref={captionRef}
-          className="text-xs md:text-xs lg:text-sm font-bold tracking-widest text-gray-800"
-          style={{
-            textShadow: '0 0 15px rgba(255,255,255,0.7)',
-            fontWeight: 400,
-            letterSpacing: '0em'
-          }}
-        >
-          A LIVE VOICE TRANSCRIBER
         </div>
       </div>
     </div>

@@ -53,11 +53,72 @@ const LANGUAGES = [
 export const LiveVoice: React.FC = () => {
   const { isDark } = useThemeStore();
   const [isListening, setIsListening] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [finalText, setFinalText] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [error, setError] = useState('');
   const [audioLevel, setAudioLevel] = useState(0.5);
+
+  // Add CSS animations
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      
+      @keyframes fadeInScale {
+        from {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+      
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const connectionRef = useRef<ListenLiveClient | null>(null);
@@ -69,12 +130,12 @@ export const LiveVoice: React.FC = () => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const barsRef = useRef<(HTMLDivElement | null)[]>([]);
 
-  // GSAP animations
+  // GSAP animations with smoother transitions
   useEffect(() => {
     if (cardRef.current) {
       gsap.fromTo(cardRef.current, 
-        { opacity: 0, y: 50, scale: 0.9 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "back.out(1.7)" }
+        { opacity: 0, y: 30, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power2.out" }
       );
     }
   }, []);
@@ -83,19 +144,25 @@ export const LiveVoice: React.FC = () => {
     if (buttonRef.current) {
       if (isListening) {
         gsap.to(buttonRef.current, {
-          scale: 1.1,
-          duration: 0.3,
+          scale: 1.05,
+          duration: 0.2,
+          ease: "power2.out"
+        });
+      } else if (isConnecting) {
+        gsap.to(buttonRef.current, {
+          scale: 1.02,
+          duration: 0.2,
           ease: "power2.out"
         });
       } else {
         gsap.to(buttonRef.current, {
           scale: 1,
-          duration: 0.3,
+          duration: 0.2,
           ease: "power2.out"
         });
       }
     }
-  }, [isListening]);
+  }, [isListening, isConnecting]);
 
   // Audio level animation
   useEffect(() => {
@@ -123,23 +190,26 @@ export const LiveVoice: React.FC = () => {
     if (isListening) {
       barsRef.current.forEach((bar, index) => {
         if (bar) {
+          // Reduced sensitivity: multiply by 4 instead of 8, smaller base movement
+          const baseScale = 1 + Math.random() * 0.2; // Smaller base random movement
+          const audioScale = Math.max(audioLevel * 4, 0.05); // Less sensitive to audio
           gsap.to(bar, {
-            scaleY: 1 + Math.random() * audioLevel * 3,
-            duration: 0.1,
+            scaleY: baseScale + audioScale,
+            duration: 0.1, // Slightly slower response
             repeat: -1,
             yoyo: true,
-            delay: index * 0.05,
+            delay: index * 0.04, // Slightly slower delay
             ease: "power2.inOut"
           });
         }
       });
     } else {
+      // Kill all animations and set to static state when not listening
       barsRef.current.forEach((bar) => {
         if (bar) {
-          gsap.to(bar, {
-            scaleY: 1,
-            duration: 0.3,
-            ease: "power2.out"
+          gsap.killTweensOf(bar); // Stop all animations
+          gsap.set(bar, {
+            scaleY: 1 // Set to exact static scale
           });
         }
       });
@@ -149,15 +219,18 @@ export const LiveVoice: React.FC = () => {
   const startListening = async () => {
     try {
       setError('');
+      setIsConnecting(true);
       
       // Check for required APIs
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setError('Browser does not support audio recording');
+        setIsConnecting(false);
         return;
       }
 
       if (!MediaRecorder) {
         setError('Browser does not support MediaRecorder');
+        setIsConnecting(false);
         return;
       }
       
@@ -184,6 +257,7 @@ export const LiveVoice: React.FC = () => {
       
       if (!apiKey || apiKey === 'your-deepgram-api-key-here') {
         setError('Deepgram API key not configured. Please check your .env file.');
+        setIsConnecting(false);
         return;
       }
       
@@ -207,6 +281,7 @@ export const LiveVoice: React.FC = () => {
 
       socket.on("open", () => {
         console.log('Deepgram connection opened');
+        setIsConnecting(false);
         
         // Set up MediaRecorder after connection is open
         const options: MediaRecorderOptions = {};
@@ -236,6 +311,7 @@ export const LiveVoice: React.FC = () => {
         mediaRecorderRef.current.onerror = (event) => {
           console.error('MediaRecorder error:', event);
           setError('Recording error occurred');
+          setIsConnecting(false);
         };
 
         mediaRecorderRef.current.start(50); // Send data every 50ms for faster responsiveness
@@ -251,13 +327,13 @@ export const LiveVoice: React.FC = () => {
 
       socket.on("Results", (data) => {
         console.log('Received results:', data);
-        const transcript = data.channel.alternatives[0]?.transcript || '';
+        const transcript = data.channel.alternatives[0]?.transcript || ' ';
         
         if (transcript !== '') {
           if (data.is_final) {
             console.log('Final transcript:', transcript);
             // Add space before new final text if there's existing text
-            const separator = finalText.trim() ? ' ' : '';
+            const separator = finalText.trim() ? '  ' : '  ';
             setFinalText(prev => prev + separator + transcript.trim());
             setInterimText('');
           } else {
@@ -279,6 +355,7 @@ export const LiveVoice: React.FC = () => {
       socket.on("error", (error) => {
         console.error('Deepgram error:', error);
         setError(`Connection error: ${error.error?.message || error.message || 'Unknown error'}`);
+        setIsConnecting(false);
       });
 
       socket.on("warning", () => {
@@ -291,6 +368,7 @@ export const LiveVoice: React.FC = () => {
 
       socket.on("close", (event) => {
         console.log('Deepgram connection closed:', event);
+        setIsConnecting(false);
         
         // Clear keep-alive timer
         if (keepAliveRef.current) {
@@ -310,12 +388,14 @@ export const LiveVoice: React.FC = () => {
     } catch (error) {
       console.error('Error starting listening:', error);
       setError(`Failed to access microphone: ${error instanceof Error ? error.message : 'Please check permissions.'}`);
+      setIsConnecting(false);
     }
   };
 
   const stopListening = () => {
     console.log('Stopping listening...');
     setIsListening(false);
+    setIsConnecting(false);
     
     // Stop MediaRecorder first to prevent more data events
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -342,7 +422,7 @@ export const LiveVoice: React.FC = () => {
       audioContextRef.current.close();
     }
     
-    setInterimText('');
+    // Don't clear text automatically - let user delete manually
   };
 
   const clearText = () => {
@@ -351,7 +431,7 @@ export const LiveVoice: React.FC = () => {
   };
 
   const toggleListening = () => {
-    if (isListening) {
+    if (isListening || isConnecting) {
       stopListening();
     } else {
       startListening();
@@ -367,14 +447,14 @@ export const LiveVoice: React.FC = () => {
       }`}>
         <div 
           ref={cardRef}
-          className={`backdrop-blur-xl rounded-3xl shadow-2xl border p-8 w-full max-w-md relative overflow-hidden transition-all duration-500 ${
+          className={`backdrop-blur-xl rounded-2xl shadow-2xl border p-8 w-full max-w-md relative overflow-hidden transition-all duration-500 ${
             isDark
-              ? 'bg-black/95 border-gray-800 shadow-black/50'
-              : 'bg-white/95 border-gray-200 shadow-gray-500/20'
+              ? 'bg-black/95 border-gray-800/60 shadow-black/50'
+              : 'bg-white/95 border-gray-200/60 shadow-gray-500/20'
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-center mb-6">
+          <div className="flex items-center justify-start mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center">
                 <img 
@@ -391,30 +471,48 @@ export const LiveVoice: React.FC = () => {
 
           {/* Compact Control Row */}
           <div className="flex items-center justify-between mb-6 gap-3">
-            {/* Mic Button */}
-            <button
-              ref={buttonRef}
-              onClick={toggleListening}
-              className={`relative p-3 rounded-full transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-xl group flex-shrink-0 ${
-                isListening
-                  ? isDark
-                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
-                    : 'bg-black hover:bg-gray-900 shadow-black/20'
-                  : isDark
-                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
-                    : 'bg-black hover:bg-gray-900 shadow-black/20'
-              }`}
-            >
-              {isListening ? (
-                <MicOff className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
-                  isDark ? 'text-black' : 'text-white'
-                }`} />
-              ) : (
-                <Mic className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
-                  isDark ? 'text-black' : 'text-white'
-                }`} />
+            {/* Mic Button with Loading Spinner */}
+            <div className="relative flex-shrink-0">
+              {/* Simple hollow circular loading line */}
+              {isConnecting && (
+                <div className="absolute inset-0 -m-1 pointer-events-none">
+                  <div className={`w-full h-full rounded-full border animate-spin ${
+                    isDark 
+                      ? 'border-white/40 border-t-white' 
+                      : 'border-black/40 border-t-black'
+                  }`} style={{ animationDuration: '1s' }}></div>
+                </div>
               )}
-            </button>
+              
+              <button
+                ref={buttonRef}
+                onClick={toggleListening}
+                disabled={isConnecting}
+                className={`relative p-3 rounded-full transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-xl group ${
+                  isConnecting
+                    ? isDark
+                      ? 'bg-white hover:bg-gray-100 shadow-white/20 cursor-wait'
+                      : 'bg-black hover:bg-gray-900 shadow-black/20 cursor-wait'
+                    : isListening
+                      ? isDark
+                        ? 'bg-white hover:bg-gray-100 shadow-white/20'
+                        : 'bg-black hover:bg-gray-900 shadow-black/20'
+                      : isDark
+                        ? 'bg-white hover:bg-gray-100 shadow-white/20'
+                        : 'bg-black hover:bg-gray-900 shadow-black/20'
+                }`}
+              >
+                {isListening ? (
+                  <MicOff className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
+                    isDark ? 'text-black' : 'text-white'
+                  }`} />
+                ) : (
+                  <Mic className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
+                    isDark ? 'text-black' : 'text-white'
+                  }`} />
+                )}
+              </button>
+            </div>
 
             {/* Audio Visualizer */}
             <div className="flex items-center space-x-1 h-6 flex-1 min-w-0">
@@ -432,34 +530,37 @@ export const LiveVoice: React.FC = () => {
             </div>
 
             {/* Language Selector and Delete Button */}
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className={`text-xs px-2 py-1 border rounded-md focus:outline-none focus:ring-1 transition-all duration-200 min-w-0 ${
+                className={`text-xs px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all duration-200 min-w-0 backdrop-blur-sm ${
                   isDark
-                    ? 'border-gray-700 focus:ring-white focus:border-white bg-black text-white'
-                    : 'border-gray-300 focus:ring-black focus:border-black bg-white text-black'
+                    ? 'border-gray-600 focus:ring-white/50 focus:border-gray-400 bg-gray-900/50 text-white hover:bg-gray-800/60'
+                    : 'border-gray-300 focus:ring-black/20 focus:border-gray-500 bg-white/50 text-black hover:bg-gray-50/80'
                 }`}
-                disabled={isListening}
+                disabled={isListening || isConnecting}
               >
                 {LANGUAGES.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
+                  <option key={lang.code} value={lang.code} className={isDark ? 'bg-gray-900 text-white' : 'bg-white text-black'}>
                     {lang.name}
                   </option>
                 ))}
               </select>
               
-              {/* Delete Button */}
+              {/* Delete Button with enhanced styling */}
               {(finalText || interimText) && (
                 <button
                   onClick={clearText}
-                  className={`p-1.5 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 group ${
+                  className={`p-2 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 group transform backdrop-blur-sm ${
                     isDark
-                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100/80'
+                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/60 border border-gray-600/50'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100/80 border border-gray-200/50'
                   }`}
                   title="Clear transcription"
+                  style={{
+                    animation: 'fadeInScale 0.3s ease-out'
+                  }}
                 >
                   <Trash2 className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
                 </button>
@@ -468,62 +569,77 @@ export const LiveVoice: React.FC = () => {
           </div>
 
           {/* Transcription Area */}
-          <div className={`min-h-[160px] max-h-[280px] overflow-y-auto p-4 rounded-xl border relative transition-all duration-300 ${
+          <div className={`min-h-[160px] max-h-[280px] overflow-y-auto p-4 rounded-xl border relative transition-all duration-300 backdrop-blur-sm ${
             isDark
-              ? 'bg-gray-900/80 border-gray-600/50'
-              : 'bg-gray-50/80 border-gray-200/50'
+              ? 'bg-gray-900/60 border-gray-600/40'
+              : 'bg-gray-50/60 border-gray-200/40'
           }`}>
             
             {error ? (
-              <div className={`text-center text-sm p-3 rounded-lg border flex items-center justify-center gap-2 transition-all duration-300 ${
+              <div className={`text-center text-sm p-4 rounded-lg border flex items-center justify-center gap-2 transition-all duration-300 backdrop-blur-sm ${
                 isDark
-                  ? 'text-red-400 bg-red-900/50 border-red-700/50'
-                  : 'text-red-500 bg-red-50/80 border-red-200/50'
+                  ? 'text-red-400 bg-red-900/30 border-red-700/40'
+                  : 'text-red-500 bg-red-50/60 border-red-200/40'
               }`}>
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                 {error}
               </div>
             ) : (
               <div className="space-y-3 relative z-10">
-                {/* Final Text */}
+                {/* Final Text with enhanced styling */}
                 {finalText && (
-                  <div className={`text-base leading-relaxed font-medium p-3 rounded-lg border shadow-sm transition-all duration-300 ${
-                    isDark
-                      ? 'text-white bg-gray-800/60 border-gray-600/30'
-                      : 'text-gray-900 bg-white/60 border-gray-200/30'
-                  }`}>
+                  <div 
+                    className={`text-base leading-relaxed font-medium p-4 rounded-lg border shadow-sm transition-all duration-300 transform backdrop-blur-sm ${
+                      isDark
+                        ? 'text-white bg-gray-800/40 border-gray-600/30'
+                        : 'text-gray-900 bg-white/40 border-gray-200/30'
+                    }`}
+                    style={{
+                      animation: 'fadeInUp 0.3s ease-out'
+                    }}
+                  >
                     {finalText}
                   </div>
                 )}
                 
-                {/* Interim Text */}
+                {/* Interim Text with enhanced pulse */}
                 {interimText && (
-                  <div className={`text-base leading-relaxed italic p-3 rounded-lg border transition-all duration-300 ${
-                    isDark
-                      ? 'text-gray-400 bg-gray-700/40 border-gray-600/30'
-                      : 'text-gray-500 bg-gray-100/40 border-gray-200/30'
-                  }`}>
+                  <div 
+                    className={`text-base leading-relaxed italic p-4 rounded-lg border transition-all duration-200 transform backdrop-blur-sm ${
+                      isDark
+                        ? 'text-gray-400 bg-gray-700/30 border-gray-600/30'
+                        : 'text-gray-500 bg-gray-100/30 border-gray-200/30'
+                    }`}
+                    style={{
+                      animation: 'pulse 1.5s ease-in-out infinite'
+                    }}
+                  >
                     {interimText}
                   </div>
                 )}
 
-                {/* Placeholder */}
+                {/* Enhanced placeholder */}
                 {!finalText && !interimText && !error && (
-                  <div className={`text-center text-sm py-8 flex flex-col items-center gap-3 transition-colors duration-300 ${
-                    isDark ? 'text-gray-500' : 'text-gray-400'
-                  }`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                  <div 
+                    className={`text-center text-sm py-8 flex flex-col items-center gap-4 transition-all duration-500 ${
+                      isDark ? 'text-gray-500' : 'text-gray-400'
+                    }`}
+                    style={{
+                      animation: 'fadeIn 0.5s ease-out'
+                    }}
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 backdrop-blur-sm ${
                       isDark
-                        ? 'bg-gray-700'
-                        : 'bg-gray-200'
+                        ? 'bg-gray-700/50 border border-gray-600/30'
+                        : 'bg-gray-200/50 border border-gray-300/30'
                     }`}>
                       <Mic className={`w-6 h-6 transition-colors duration-300 ${
                         isDark ? 'text-gray-400' : 'text-gray-400'
                       }`} />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                       <p className="font-medium">Start speaking</p>
-                      <p className={`text-xs mt-1 transition-colors duration-300 ${
+                      <p className={`text-xs transition-colors duration-300 ${
                         isDark ? 'text-gray-600' : 'text-gray-400'
                       }`}>Your transcription will appear here</p>
                     </div>
