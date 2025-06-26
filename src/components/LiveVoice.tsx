@@ -111,7 +111,6 @@ export const LiveVoice: React.FC = () => {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [error, setError] = useState('');
   const [audioLevel, setAudioLevel] = useState(0.5);
-  const [isConnected, setIsConnected] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const connectionRef = useRef<ListenLiveClient | null>(null);
@@ -175,6 +174,17 @@ export const LiveVoice: React.FC = () => {
     try {
       setError('');
       
+      // Check for required APIs
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('Browser does not support audio recording');
+        return;
+      }
+
+      if (!MediaRecorder) {
+        setError('Browser does not support MediaRecorder');
+        return;
+      }
+      
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -196,10 +206,12 @@ export const LiveVoice: React.FC = () => {
       // Initialize Deepgram WebSocket
       const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY;
       
-      if (!apiKey) {
-        setError('Deepgram API key not found. Please check your .env file.');
+      if (!apiKey || apiKey === 'your-deepgram-api-key-here') {
+        setError('Deepgram API key not configured. Please check your .env file.');
         return;
       }
+      
+      console.log('Starting Deepgram connection...');
       
       const deepgram = createClient(apiKey);
       
@@ -218,7 +230,7 @@ export const LiveVoice: React.FC = () => {
       });
 
       socket.on("open", () => {
-        setIsConnected(true);
+        console.log('Deepgram connection opened');
         
         // Set up MediaRecorder after connection is open
         const options: MediaRecorderOptions = {};
@@ -226,21 +238,27 @@ export const LiveVoice: React.FC = () => {
         // Try different MIME types based on browser support
         if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
           options.mimeType = 'audio/webm;codecs=opus';
+          console.log('Using audio/webm;codecs=opus');
         } else if (MediaRecorder.isTypeSupported('audio/webm')) {
           options.mimeType = 'audio/webm';
+          console.log('Using audio/webm');
         } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
           options.mimeType = 'audio/mp4';
+          console.log('Using audio/mp4');
+        } else {
+          console.log('Using default audio format');
         }
         
         mediaRecorderRef.current = new MediaRecorder(stream, options);
 
         mediaRecorderRef.current.ondataavailable = (event) => {
-          if (event.data.size > 0 && connectionRef.current && isConnected) {
+          if (event.data.size > 0 && connectionRef.current && socket.getReadyState() === 1) {
             connectionRef.current.send(event.data);
           }
         };
 
-        mediaRecorderRef.current.onerror = () => {
+        mediaRecorderRef.current.onerror = (event) => {
+          console.error('MediaRecorder error:', event);
           setError('Recording error occurred');
         };
 
@@ -249,22 +267,25 @@ export const LiveVoice: React.FC = () => {
         
         // Set up keep-alive to prevent connection timeout
         keepAliveRef.current = setInterval(() => {
-          if (connectionRef.current) {
+          if (connectionRef.current && socket.getReadyState() === 1) {
             connectionRef.current.keepAlive();
           }
         }, 5000); // Send keep-alive every 5 seconds for better connection stability
       });
 
       socket.on("Results", (data) => {
+        console.log('Received results:', data);
         const transcript = data.channel.alternatives[0]?.transcript || '';
         
         if (transcript !== '') {
           if (data.is_final) {
+            console.log('Final transcript:', transcript);
             // Add space before new final text if there's existing text
             const separator = finalText.trim() ? ' ' : '';
             setFinalText(prev => prev + separator + transcript.trim());
             setInterimText('');
           } else {
+            console.log('Interim transcript:', transcript);
             setInterimText(transcript);
           }
         }
@@ -280,8 +301,8 @@ export const LiveVoice: React.FC = () => {
       });
 
       socket.on("error", (error) => {
-        setError(`Connection error: ${error.error?.message || 'Unknown error'}`);
-        setIsConnected(false);
+        console.error('Deepgram error:', error);
+        setError(`Connection error: ${error.error?.message || error.message || 'Unknown error'}`);
       });
 
       socket.on("warning", () => {
@@ -293,7 +314,7 @@ export const LiveVoice: React.FC = () => {
       });
 
       socket.on("close", (event) => {
-        setIsConnected(false);
+        console.log('Deepgram connection closed:', event);
         
         // Clear keep-alive timer
         if (keepAliveRef.current) {
@@ -310,14 +331,15 @@ export const LiveVoice: React.FC = () => {
 
       connectionRef.current = socket;
       
-    } catch {
-      setError('Failed to access microphone. Please check permissions.');
+    } catch (error) {
+      console.error('Error starting listening:', error);
+      setError(`Failed to access microphone: ${error instanceof Error ? error.message : 'Please check permissions.'}`);
     }
   };
 
   const stopListening = () => {
+    console.log('Stopping listening...');
     setIsListening(false);
-    setIsConnected(false);
     
     // Stop MediaRecorder first to prevent more data events
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
