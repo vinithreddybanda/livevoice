@@ -3,7 +3,6 @@ import { Mic, MicOff, Trash2 } from 'lucide-react';
 import { createClient, type ListenLiveClient } from '@deepgram/sdk';
 import { gsap } from 'gsap';
 import { useThemeStore } from '../lib/themeStore';
-import { ThreeBackground } from './ThreeBackground';
 
 // Deepgram language codes - Enhanced and Nova-2 models
 const LANGUAGES = [
@@ -361,7 +360,6 @@ export const LiveVoice: React.FC = () => {
 
   return (
     <>
-      <ThreeBackground isDark={isDark} isListening={isListening} />
       <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 ${
         isDark 
           ? 'bg-black' 
@@ -381,13 +379,13 @@ export const LiveVoice: React.FC = () => {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center">
                 <img 
                   src="/favico.svg" 
-                  alt="LiveVoice" 
+                  alt="LIVEVOICEX" 
                   className="w-8 h-8"
                 />
               </div>
               <h1 className={`text-xl font-bold transition-colors duration-300 ${
                 isDark ? 'text-white' : 'text-black'
-              }`}>LiveVoice</h1>
+              }`}>LIVEVOICEX</h1>
             </div>
           </div>
 
