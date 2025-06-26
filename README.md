@@ -1,59 +1,108 @@
-# LiveVoice - Real-time Speech-to-Text App
+# LIVEVOICEX
 
-A clean, minimalistic React frontend for live speech-to-text transcription using Deepgram AI.
+Real-time voice transcription app built with React, TypeScript, and Deepgram.
 
-## Features
+## What It Does
 
-- 🎙️ **Real-time transcription** with Deepgram WebSocket API
-- 🎵 **Audio visualizer** with waveform animation
-- 🌍 **Multi-language support** with official Deepgram language codes
-- 📱 **iPhone-like design** with clean, rounded interface
-- ⚡ **Smooth animations** between interim and final text
-- 🔧 **Error handling** for microphone access and API issues
+- **Live Voice Transcription**: Real-time speech-to-text using Deepgram SDK
+- **Multi-Language Support**: 40+ languages with Enhanced and Nova-2 models
+- **Interactive UI**: Cinematic intro with mouse interactions and audio visualizer using shader inspired by awwwards
+
+
+## Tech Stack
+
+**Frontend**
+- React 18 + TypeScript + Vite
+- Tailwind CSS for styling
+- GSAP for animations
+- Lucide React for icons
+- Zustand for state management
+
+**Audio & AI**
+- Deepgram SDK for speech-to-text
+- Web Audio API for real-time audio analysis
+- MediaRecorder API for audio streaming
+
+**3D Graphics**
+- Three.js + React Three Fiber
+- Custom GLSL shaders for background effects
+
+## Key Features
+
+**Audio Visualizer**
+- Real-time audio level detection
+- 8-bar animated visualizer
+- Only active during recording
+- Reduced sensitivity for smooth movement
+
+**Language Support**
+- Enhanced models: Danish, Dutch, English, French, German, Italian, Japanese, Korean, Norwegian, Polish, Portuguese, Spanish, Swedish, Tamil, Tamasheq
+- Nova-2 models: Bulgarian, Catalan, Chinese variants, Czech, Estonian, Finnish, Greek, Hungarian, Indonesian, Latvian, Lithuanian, Malay, Romanian, Russian, Slovak, Thai, Turkish, Ukrainian, Vietnamese
+
+**UI/UX Enhancements**
+- Cinematic intro with 3D mouse interactions
+- Always-visible mic button with loading states
+- Clean text deletion (manual only)
+- Left-aligned header layout
+- Smooth GSAP transitions
+
 
 ## Setup
 
-1. **Install dependencies** (already done):
+1. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. **Get a Deepgram API key**:
-   - Sign up at [Deepgram](https://deepgram.com/)
-   - Get your API key from the dashboard
+2. **Environment setup**
+   Create `.env` file:
+   ```
+   VITE_DEEPGRAM_API_KEY=your_deepgram_api_key_here
+   ```
 
-3. **Configure environment**:
-   - Copy `.env.example` to `.env`
-   - Add your Deepgram API key:
-     ```
-     VITE_DEEPGRAM_API_KEY=your_actual_api_key_here
-     ```
-
-4. **Start the development server**:
+3. **Run development server**
    ```bash
    npm run dev
    ```
 
-## Usage
+## Dependencies
 
-1. Click the microphone button to start listening
-2. Speak into your microphone
-3. See real-time transcription with:
-   - Gray italic text for interim results
-   - Bold black text for final results
-4. Select different languages from the settings panel
-5. Clear text or stop listening as needed
+**Core**
+- `@deepgram/sdk` - Speech-to-text API
+- `@react-three/fiber` - React Three.js renderer
+- `gsap` - Animation library
+- `three` - 3D graphics library
+- `zustand` - State management
 
-## Browser Requirements
+**UI**
+- `lucide-react` - Icon library
+- `tailwindcss` - CSS framework
 
-- Modern browser with WebRTC support
-- Microphone permissions
-- HTTPS (required for microphone access in production)
+**Build Tools**
+- `vite` - Build tool
+- `typescript` - Type safety
+- `@vitejs/plugin-react` - React support
 
-## Tech Stack
+## Key Implementations
 
-- **React 19** with TypeScript
-- **Tailwind CSS** for styling
-- **Deepgram SDK** for speech-to-text
-- **Lucide React** for icons
-- **Vite** for development and building
+**Audio Processing**
+- Real-time frequency analysis with Web Audio API
+- MediaRecorder with optimized MIME type detection
+- Audio level normalization for visualizer
+
+**State Management**
+- Zustand for theme persistence
+- React state for transcription and connection status
+- GSAP refs for animation control
+
+**Animation System**
+- GSAP timelines for intro sequence
+- Mouse-based 3D transforms on title
+- Real-time audio visualizer with GSAP
+
+**Connection Handling**
+- WebSocket management with keep-alive
+- Error handling and reconnection logic
+- Loading states with visual feedback
+
+That's it. No fluff.
