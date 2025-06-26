@@ -51,58 +51,6 @@ const LANGUAGES = [
   { code: 'vi', name: 'Vietnamese', model: 'nova-2' },
 ];
 
-const AudioVisualizer: React.FC<{ isListening: boolean; audioLevel: number; isDark: boolean }> = ({
-  isListening,
-  audioLevel,
-  isDark,
-}) => {
-  const bars = Array.from({ length: 12 }, (_, i) => i);
-  const barsRef = useRef<(HTMLDivElement | null)[]>([]);
-
-  useEffect(() => {
-    if (isListening) {
-      barsRef.current.forEach((bar, index) => {
-        if (bar) {
-          gsap.to(bar, {
-            scaleY: 1 + Math.random() * audioLevel * 3,
-            duration: 0.1,
-            repeat: -1,
-            yoyo: true,
-            delay: index * 0.05,
-            ease: "power2.inOut"
-          });
-        }
-      });
-    } else {
-      barsRef.current.forEach((bar) => {
-        if (bar) {
-          gsap.to(bar, {
-            scaleY: 1,
-            duration: 0.3,
-            ease: "power2.out"
-          });
-        }
-      });
-    }
-  }, [isListening, audioLevel]);
-
-  return (
-    <div className="flex items-center justify-center space-x-1 h-8 mb-4">
-      {bars.map((_, index) => (
-        <div
-          key={index}
-          ref={(el) => { barsRef.current[index] = el; }}
-          className={`w-1 h-4 rounded-full transition-all duration-100 ease-out origin-bottom ${
-            isDark
-              ? 'bg-white'
-              : 'bg-black'
-          } ${isListening ? 'opacity-100' : 'opacity-20'}`}
-        />
-      ))}
-    </div>
-  );
-};
-
 export const LiveVoice: React.FC = () => {
   const { isDark } = useThemeStore();
   const [isListening, setIsListening] = useState(false);
@@ -120,6 +68,7 @@ export const LiveVoice: React.FC = () => {
   const keepAliveRef = useRef<NodeJS.Timeout | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const barsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   // GSAP animations
   useEffect(() => {
@@ -169,6 +118,34 @@ export const LiveVoice: React.FC = () => {
 
     updateAudioLevel();
   }, [isListening]);
+
+  // Animate visualizer bars
+  useEffect(() => {
+    if (isListening) {
+      barsRef.current.forEach((bar, index) => {
+        if (bar) {
+          gsap.to(bar, {
+            scaleY: 1 + Math.random() * audioLevel * 3,
+            duration: 0.1,
+            repeat: -1,
+            yoyo: true,
+            delay: index * 0.05,
+            ease: "power2.inOut"
+          });
+        }
+      });
+    } else {
+      barsRef.current.forEach((bar) => {
+        if (bar) {
+          gsap.to(bar, {
+            scaleY: 1,
+            duration: 0.3,
+            ease: "power2.out"
+          });
+        }
+      });
+    }
+  }, [isListening, audioLevel]);
 
   const startListening = async () => {
     try {
@@ -414,16 +391,54 @@ export const LiveVoice: React.FC = () => {
             </div>
           </div>
 
-          {/* Compact Language Selector */}
-          <div className="mb-4">
-            <div className="flex items-center justify-center gap-2">
-              <span className={`text-xs font-medium ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>Language:</span>
+          {/* Compact Control Row */}
+          <div className="flex items-center justify-between mb-6 gap-3">
+            {/* Mic Button */}
+            <button
+              ref={buttonRef}
+              onClick={toggleListening}
+              className={`relative p-3 rounded-full transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-xl group flex-shrink-0 ${
+                isListening
+                  ? isDark
+                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
+                    : 'bg-black hover:bg-gray-900 shadow-black/20'
+                  : isDark
+                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
+                    : 'bg-black hover:bg-gray-900 shadow-black/20'
+              }`}
+            >
+              {isListening ? (
+                <MicOff className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
+                  isDark ? 'text-black' : 'text-white'
+                }`} />
+              ) : (
+                <Mic className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
+                  isDark ? 'text-black' : 'text-white'
+                }`} />
+              )}
+            </button>
+
+            {/* Audio Visualizer */}
+            <div className="flex items-center space-x-1 h-6 flex-1 min-w-0">
+              {Array.from({ length: 8 }, (_, index) => (
+                <div
+                  key={index}
+                  ref={(el) => { barsRef.current[index] = el; }}
+                  className={`w-1 h-3 rounded-full transition-all duration-100 ease-out origin-bottom flex-shrink-0 ${
+                    isDark
+                      ? 'bg-white'
+                      : 'bg-black'
+                  } ${isListening ? 'opacity-100' : 'opacity-20'}`}
+                />
+              ))}
+            </div>
+
+            {/* Language Selector */}
+            <div className="flex items-center gap-1 flex-shrink-0">
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className={`text-xs px-2 py-1 border rounded-md focus:outline-none focus:ring-1 transition-all duration-200 ${
+                className={`text-xs px-2 py-1 border rounded-md focus:outline-none focus:ring-1 transition-all duration-200 min-w-0 ${
                   isDark
                     ? 'border-gray-700 focus:ring-white focus:border-white bg-black text-white'
                     : 'border-gray-300 focus:ring-black focus:border-black bg-white text-black'
@@ -437,43 +452,6 @@ export const LiveVoice: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
-
-          {/* Audio Visualizer */}
-          <AudioVisualizer isListening={isListening} audioLevel={audioLevel} isDark={isDark} />
-
-          {/* Main Button */}
-          <div className="flex justify-center mb-6">
-            <button
-              ref={buttonRef}
-              onClick={toggleListening}
-              className={`relative p-6 rounded-full transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-xl group ${
-                isListening
-                  ? isDark
-                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
-                    : 'bg-black hover:bg-gray-900 shadow-black/20'
-                  : isDark
-                    ? 'bg-white hover:bg-gray-100 shadow-white/20'
-                    : 'bg-black hover:bg-gray-900 shadow-black/20'
-              }`}
-            >
-              {/* Ripple effect */}
-              {isListening && (
-                <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${
-                  isDark ? 'bg-white' : 'bg-black'
-                }`}></div>
-              )}
-              
-              {isListening ? (
-                <MicOff className={`w-8 h-8 relative z-10 transition-transform duration-200 group-hover:scale-110 ${
-                  isDark ? 'text-black' : 'text-white'
-                }`} />
-              ) : (
-                <Mic className={`w-8 h-8 relative z-10 transition-transform duration-200 group-hover:scale-110 ${
-                  isDark ? 'text-black' : 'text-white'
-                }`} />
-              )}
-            </button>
           </div>
 
           {/* Transcription Area */}
