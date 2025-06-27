@@ -106,3 +106,6 @@ Real-time voice transcription app built with React, TypeScript, and Deepgram.
 - Loading states with visual feedback
 
 That's it. No fluff.
+
+
+ps: use `npm run build --force`
